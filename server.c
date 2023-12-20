@@ -8,10 +8,10 @@
 #include <errno.h>
 
 #define MAX_DATA_SEND               (100)
-#define MAX_NUM_CLIENTS   (1000)
-#define DEFAULT_PORT      (1999)
-#define BACKLOG           (512 ) //shoud not be bigger then the value 
-                                 //in "/proc/sys/net/ipv4/tcp_max_syn_backlog".
+#define DEFAULT_MAX_NUM_CLIENTS     (1000)
+#define DEFAULT_PORT                (1999)
+#define DEFAULT_MAX_BACKLOG         (512 ) //shoud not be bigger then the value 
+                                           //in "/proc/sys/net/ipv4/tcp_max_syn_backlog".
 
 #define CONNECTION_ERROR  (1)
 #define OPTION_ERROR      (-1)
@@ -55,27 +55,34 @@ void* handle_client(void* client_data)
 
 int main(int argc, char ** argv)
 {
-  int port=DEFAULT_PORT, max_clients=MAX_NUM_CLIENTS, option='?';
+  int port=DEFAULT_PORT, max_backlog=DEFAULT_MAX_BACKLOG, max_clients=DEFAULT_MAX_NUM_CLIENTS, option='?';
   int sock_fd, new_fd, sin_size;
   struct sockaddr_in my_addr, client_addr;
 
-  while ((option = getopt(argc, argv, ":p:hn:"))!=-1)
+  while ((option = getopt(argc, argv, ":p:hn:b:"))!=-1)
   {
     switch (option)
     {
       case 'p':
         port = atoi(optarg);
         break;
+      case 'b':
+        max_backlog = atoi(optarg);
+        if(max_backlog>DEFAULT_MAX_BACKLOG)
+        {
+          printf("The max number of pending connections can not be bigger the %d\n", DEFAULT_MAX_BACKLOG);
+          return OPTION_ERROR;
+        }
       case 'n':
         max_clients = atoi(optarg);
         break;
       case 'h':
-        printf("%s [-p <port> | -h | -n <max number of clients>]\n", argv[0]);
+        printf("%s [-p <port> | -h | -n <max number of clients> | -b <max number of pending connections>]\n", argv[0]);
         return SUCCES;
       case '?':
-        printf("wrong options\n");
+        printf("Wrong options\n");
       default :
-        printf("%s [-p <port> | -h | -n <max number of clients>]\n", argv[0]);
+        printf("%s [-p <port> | -h | -n <max number of clients> | -b <max number of pending connections>]\n", argv[0]);
         return OPTION_ERROR;
     }
   }
@@ -99,7 +106,7 @@ int main(int argc, char ** argv)
   }
   DISPLAY("Bind: OK\n")
   
-  if (listen(sock_fd, BACKLOG))
+  if (listen(sock_fd, max_backlog))
   {
     DISPLAY("error : listen() %d\n",errno)
     return CONNECTION_ERROR;
